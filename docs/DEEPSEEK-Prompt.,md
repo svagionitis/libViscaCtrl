@@ -1,0 +1,24 @@
+I would like to create the Visca protocol as described in the attached ICD document.
+* It should be a library in C++17 with RAII and take into account that it would be in an embedded device.
+* It will be cross-platform for Windows and Linux.
+* There will be no external dependencies for now.
+* It's a CMake project.
+* Add doxygen style comments.
+* Use the Webkit code style.
+* It will have serial, TCP and UDP communications. The communication will be thread safe.
+* Use ring buffer where applicable. The ring buffer will be thread safe.
+* Create a logger with strings which will be used in the library. The logger will be thread safe.
+* It will be cross-platform for Windows and Linux. Implement Linux first. For cross-platform implementation, don't use ifdefs.
+* It will be used in a daemon.
+* In every response show the directory structure before and after.
+* With every change in a file, you need to show the whole file.
+* Prefer .h/.cpp files rather than .hpp where appropriate.
+* Prefer that the .h files will be in the same directory with the .cpp files.
+* When there are any changes in a .cpp file, show the .h file as well.
+* Don't change the filenames and the file structure between responses. The filenames and file structure must be consistent between responses.
+* Show each file separately.
+* Make it as simple as possible.
+* In each response check if the current bullet points are followed.
+* The .h and .cpp files will be in a lib directory, with no src and include folders.
+* Give the option to build shared or static library.
+Before implement it, just propose the architecture.

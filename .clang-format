@@ -1,0 +1,4 @@
+BasedOnStyle: WebKit
+Standard: Cpp11 # WebKit style handles C++17 features well under this flag
+IndentWidth: 4
+ColumnLimit: 120 # Optional: Adjust if you prefer longer lines than the default
