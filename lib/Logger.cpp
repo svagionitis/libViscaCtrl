@@ -21,6 +21,24 @@ void Logger::setLevel(LogLevel level)
     m_currentLevel = level;
 }
 
+LogLevel Logger::getLevel() const
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_currentLevel;
+}
+
+void Logger::enableLogging(bool enable)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_loggingEnabled = enable;
+}
+
+bool Logger::isLoggingEnabled() const
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_loggingEnabled;
+}
+
 void Logger::setOutput(std::ostream* output)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -43,7 +61,7 @@ bool Logger::setOutputFile(const std::string& filename, bool append)
         if (fileStream->is_open()) {
             m_fileOutput = std::move(fileStream);
             m_useFile = true;
-            m_useConsole = false; // Disable console when only file is requested
+            m_useConsole = false;
             return true;
         }
     } catch (...) {
@@ -84,7 +102,6 @@ void Logger::setOutputToBoth(std::ostream* consoleOutput, const std::string& fil
             m_useFile = true;
         }
     } catch (...) {
-        // If file opening fails, continue with console only
         m_useFile = false;
     }
 }
@@ -99,6 +116,24 @@ void Logger::closeFile()
     m_useFile = false;
 }
 
+void Logger::enableLocationInfo(bool enable)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_showLocation = enable;
+}
+
+bool Logger::isLocationInfoEnabled() const
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_showLocation;
+}
+
+bool Logger::shouldLog(LogLevel level) const
+{
+    // Check if logging is globally enabled and if the level meets the threshold
+    return m_loggingEnabled && (level <= m_currentLevel);
+}
+
 void Logger::writeToOutputs(const std::string& formattedMessage)
 {
     if (m_useConsole && m_consoleOutput) {
@@ -107,7 +142,7 @@ void Logger::writeToOutputs(const std::string& formattedMessage)
 
     if (m_useFile && m_fileOutput && m_fileOutput->is_open()) {
         *m_fileOutput << formattedMessage;
-        m_fileOutput->flush(); // Ensure it's written immediately
+        m_fileOutput->flush();
     }
 }
 
@@ -129,7 +164,7 @@ void Logger::log(LogLevel level, const char* file, const char* function, int lin
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    if (level > m_currentLevel)
+    if (!shouldLog(level))
         return;
 
     auto now = std::chrono::system_clock::now();
@@ -162,10 +197,10 @@ void Logger::log(LogLevel level, const char* file, const char* function, int lin
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    if (level > m_currentLevel)
+    if (!shouldLog(level))
         return;
 
-    char buffer[2048]; // Increased buffer size for more detailed logs
+    char buffer[2048];
     va_list args;
     va_start(args, format);
     vsnprintf(buffer, sizeof(buffer), format, args);

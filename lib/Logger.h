@@ -16,10 +16,16 @@ class VISCA_EXPORT Logger {
 public:
     static Logger& instance();
 
+    // Level management
     void setLevel(LogLevel level);
-    void setOutput(std::ostream* output);
+    LogLevel getLevel() const;
 
-    // New methods for file logging
+    // Global enable/disable
+    void enableLogging(bool enable);
+    bool isLoggingEnabled() const;
+
+    // Output configuration
+    void setOutput(std::ostream* output);
     bool setOutputFile(const std::string& filename, bool append = true);
     void setOutputToConsole();
     void setOutputToBoth(std::ostream* consoleOutput, const std::string& filename, bool append = true);
@@ -30,7 +36,8 @@ public:
     void log(LogLevel level, const char* file, const char* function, int line, const char* format, ...);
 
     // Configuration
-    void enableLocationInfo(bool enable) { m_showLocation = enable; }
+    void enableLocationInfo(bool enable);
+    bool isLocationInfoEnabled() const;
 
 private:
     Logger();
@@ -44,48 +51,60 @@ private:
     // Helper to extract filename from path
     static const char* extractFileName(const char* filePath);
 
-    std::mutex m_mutex;
+    // Helper to check if logging should occur
+    bool shouldLog(LogLevel level) const;
+
+    mutable std::mutex m_mutex;
     LogLevel m_currentLevel { LogLevel::Info };
     std::ostream* m_consoleOutput { &std::cout };
     std::unique_ptr<std::ofstream> m_fileOutput;
     bool m_useConsole { true };
     bool m_useFile { false };
-    bool m_showLocation { true }; // Toggle for location info
+    bool m_showLocation { true };
+    bool m_loggingEnabled { true }; // Global logging switch
 };
 
-// Updated macros that capture file, function, and line
+// Updated macros that check if logging is enabled
 #define VISCALOG_ERROR(msg)                                                                                            \
     do {                                                                                                               \
-        std::ostringstream oss;                                                                                        \
-        oss << msg;                                                                                                    \
-        Visca::Logger::instance().log(Visca::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, oss.str());            \
+        if (Visca::Logger::instance().isLoggingEnabled()) {                                                            \
+            std::ostringstream oss;                                                                                    \
+            oss << msg;                                                                                                \
+            Visca::Logger::instance().log(Visca::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, oss.str());        \
+        }                                                                                                              \
     } while (0)
 
 #define VISCALOG_WARN(msg)                                                                                             \
     do {                                                                                                               \
-        std::ostringstream oss;                                                                                        \
-        oss << msg;                                                                                                    \
-        Visca::Logger::instance().log(Visca::LogLevel::Warning, __FILE__, __FUNCTION__, __LINE__, oss.str());          \
+        if (Visca::Logger::instance().isLoggingEnabled()) {                                                            \
+            std::ostringstream oss;                                                                                    \
+            oss << msg;                                                                                                \
+            Visca::Logger::instance().log(Visca::LogLevel::Warning, __FILE__, __FUNCTION__, __LINE__, oss.str());      \
+        }                                                                                                              \
     } while (0)
 
 #define VISCALOG_INFO(msg)                                                                                             \
     do {                                                                                                               \
-        std::ostringstream oss;                                                                                        \
-        oss << msg;                                                                                                    \
-        Visca::Logger::instance().log(Visca::LogLevel::Info, __FILE__, __FUNCTION__, __LINE__, oss.str());             \
+        if (Visca::Logger::instance().isLoggingEnabled()) {                                                            \
+            std::ostringstream oss;                                                                                    \
+            oss << msg;                                                                                                \
+            Visca::Logger::instance().log(Visca::LogLevel::Info, __FILE__, __FUNCTION__, __LINE__, oss.str());         \
+        }                                                                                                              \
     } while (0)
 
 #define VISCALOG_DEBUG(msg)                                                                                            \
     do {                                                                                                               \
-        std::ostringstream oss;                                                                                        \
-        oss << msg;                                                                                                    \
-        Visca::Logger::instance().log(Visca::LogLevel::Debug, __FILE__, __FUNCTION__, __LINE__, oss.str());            \
+        if (Visca::Logger::instance().isLoggingEnabled()) {                                                            \
+            std::ostringstream oss;                                                                                    \
+            oss << msg;                                                                                                \
+            Visca::Logger::instance().log(Visca::LogLevel::Debug, __FILE__, __FUNCTION__, __LINE__, oss.str());        \
+        }                                                                                                              \
     } while (0)
 
-// Conditional logging macros (only log if level is enabled)
+// Conditional logging macros
 #define VISCALOG_ERROR_IF(condition, msg)                                                                              \
     do {                                                                                                               \
-        if (condition) {                                                                                               \
+        if (Visca::Logger::instance().isLoggingEnabled() && (condition)) {                                             \
             std::ostringstream oss;                                                                                    \
             oss << msg;                                                                                                \
             Visca::Logger::instance().log(Visca::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, oss.str());        \
@@ -94,11 +113,44 @@ private:
 
 #define VISCALOG_WARN_IF(condition, msg)                                                                               \
     do {                                                                                                               \
-        if (condition) {                                                                                               \
+        if (Visca::Logger::instance().isLoggingEnabled() && (condition)) {                                             \
             std::ostringstream oss;                                                                                    \
             oss << msg;                                                                                                \
             Visca::Logger::instance().log(Visca::LogLevel::Warning, __FILE__, __FUNCTION__, __LINE__, oss.str());      \
         }                                                                                                              \
+    } while (0)
+
+#define VISCALOG_INFO_IF(condition, msg)                                                                               \
+    do {                                                                                                               \
+        if (Visca::Logger::instance().isLoggingEnabled() && (condition)) {                                             \
+            std::ostringstream oss;                                                                                    \
+            oss << msg;                                                                                                \
+            Visca::Logger::instance().log(Visca::LogLevel::Info, __FILE__, __FUNCTION__, __LINE__, oss.str());         \
+        }                                                                                                              \
+    } while (0)
+
+#define VISCALOG_DEBUG_IF(condition, msg)                                                                              \
+    do {                                                                                                               \
+        if (Visca::Logger::instance().isLoggingEnabled() && (condition)) {                                             \
+            std::ostringstream oss;                                                                                    \
+            oss << msg;                                                                                                \
+            Visca::Logger::instance().log(Visca::LogLevel::Debug, __FILE__, __FUNCTION__, __LINE__, oss.str());        \
+        }                                                                                                              \
+    } while (0)
+
+// Macros that always log regardless of global setting (useful for critical errors)
+#define VISCALOG_FORCE_ERROR(msg)                                                                                      \
+    do {                                                                                                               \
+        std::ostringstream oss;                                                                                        \
+        oss << msg;                                                                                                    \
+        Visca::Logger::instance().log(Visca::LogLevel::Error, __FILE__, __FUNCTION__, __LINE__, oss.str());            \
+    } while (0)
+
+#define VISCALOG_FORCE_WARN(msg)                                                                                       \
+    do {                                                                                                               \
+        std::ostringstream oss;                                                                                        \
+        oss << msg;                                                                                                    \
+        Visca::Logger::instance().log(Visca::LogLevel::Warning, __FILE__, __FUNCTION__, __LINE__, oss.str());          \
     } while (0)
 
 }
