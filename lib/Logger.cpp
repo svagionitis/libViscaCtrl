@@ -23,7 +23,91 @@ void Logger::setLevel(LogLevel level)
 void Logger::setOutput(std::ostream* output)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
-    m_output = output;
+    m_consoleOutput = output;
+    m_useConsole = true;
+}
+
+bool Logger::setOutputFile(const std::string& filename, bool append)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    try {
+        auto fileStream = std::make_unique<std::ofstream>();
+        std::ios_base::openmode mode = std::ios_base::out;
+        if (append) {
+            mode |= std::ios_base::app;
+        }
+
+        fileStream->open(filename, mode);
+        if (fileStream->is_open()) {
+            m_fileOutput = std::move(fileStream);
+            m_useFile = true;
+            m_useConsole = false; // Disable console when only file is requested
+            return true;
+        }
+    } catch (...) {
+        // Handle any exceptions
+    }
+
+    return false;
+}
+
+void Logger::setOutputToConsole()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_useConsole = true;
+    m_useFile = false;
+    if (m_fileOutput) {
+        m_fileOutput->close();
+        m_fileOutput.reset();
+    }
+}
+
+void Logger::setOutputToBoth(std::ostream* consoleOutput, const std::string& filename, bool append)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    m_consoleOutput = consoleOutput;
+    m_useConsole = true;
+
+    try {
+        auto fileStream = std::make_unique<std::ofstream>();
+        std::ios_base::openmode mode = std::ios_base::out;
+        if (append) {
+            mode |= std::ios_base::app;
+        }
+
+        fileStream->open(filename, mode);
+        if (fileStream->is_open()) {
+            m_fileOutput = std::move(fileStream);
+            m_useFile = true;
+        }
+    } catch (...) {
+        // If file opening fails, continue with console only
+        m_useFile = false;
+    }
+}
+
+void Logger::closeFile()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_fileOutput) {
+        m_fileOutput->close();
+        m_fileOutput.reset();
+    }
+    m_useFile = false;
+}
+
+void Logger::writeToOutputs(const std::string& formattedMessage)
+{
+    if (m_useConsole && m_consoleOutput) {
+        *m_consoleOutput << formattedMessage;
+    }
+
+    if (m_useFile && m_fileOutput && m_fileOutput->is_open()) {
+        *m_fileOutput << formattedMessage;
+        m_fileOutput->flush(); // Ensure it's written immediately
+    }
 }
 
 void Logger::log(LogLevel level, const std::string& message)
@@ -39,8 +123,11 @@ void Logger::log(LogLevel level, const std::string& message)
 
     std::tm tm = *std::localtime(&timeT);
 
-    *m_output << "[" << std::put_time(&tm, "%H:%M:%S") << "." << std::setfill('0') << std::setw(3) << ms.count()
-              << "] [" << levelToString(level) << "] " << message << std::endl;
+    std::ostringstream formattedMessage;
+    formattedMessage << "[" << std::put_time(&tm, "%H:%M:%S") << "." << std::setfill('0') << std::setw(3) << ms.count()
+                     << "] [" << levelToString(level) << "] " << message << std::endl;
+
+    writeToOutputs(formattedMessage.str());
 }
 
 void Logger::log(LogLevel level, const char* format, ...)
